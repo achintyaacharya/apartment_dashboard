@@ -1,0 +1,2357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NOVA Hunt — Mobile Apartment & Condo Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --background: #0b0f17;
+      --foreground: #f8fafc;
+      --card: #131b2e;
+      --sidebar: #0f1626;
+      --border: #23304d;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+      --secondary: #1e293b;
+      --secondary-foreground: #e2e8f0;
+      --muted-foreground: #94a3b8;
+      --placeholder: #64748b;
+    }
+    body {
+      background-color: var(--background);
+      color: var(--foreground);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased p-0 sm:p-4 md:p-6">
+
+  <!-- Mobile Viewport Container -->
+  <div class="max-w-md mx-auto bg-[var(--card)] sm:border-2 border-[var(--border)] sm:rounded-3xl overflow-hidden shadow-lg relative min-h-screen sm:min-h-0">
+
+    <!-- Top Sync Warning Banner -->
+    <div class="bg-amber-500/15 border-b border-amber-500/30 px-3.5 py-2 text-xs text-amber-300 flex items-start gap-2">
+      <span>⏳</span>
+      <span><b>Notice:</b> All comments, shortlists, or rejections submitted now will be reflected on this dashboard in the next run of the scheduled scripts.</span>
+    </div>
+
+    <!-- ZONE 1: Sticky App Header, View Toggle (Cards/Table) & Tracker Switcher -->
+    <div class="bg-[var(--sidebar)] border-b border-[var(--border)] px-4 pt-3.5 pb-3 sticky top-0 z-20">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div>
+          <h2 class="text-base font-bold tracking-tight text-[var(--foreground)]">🏡 NOVA Hunt</h2>
+          <p class="text-xs text-[var(--muted-foreground)]">Auto-updated • Nov 14, 09:19 PM (Max Move-in: Jan 31)</p>
+        </div>
+
+        <!-- Cards vs. Table Switcher -->
+        <div class="flex bg-[var(--background)] p-0.5 rounded-lg border border-[var(--border)]">
+          <button id="view-cards" onclick="setViewMode('cards')" class="px-3 py-1 rounded-md text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]">
+            🗂️ Cards
+          </button>
+          <button id="view-table" onclick="setViewMode('table')" class="px-3 py-1 rounded-md text-xs font-semibold transition text-[var(--muted-foreground)]">
+            📊 Table
+          </button>
+        </div>
+      </div>
+
+      <!-- 3-Way Segmented Control: All / Apartments / Condos -->
+      <div class="grid grid-cols-3 gap-1 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)]">
+        <button onclick="setTracker('all')" id="tab-all" class="py-1.5 rounded-lg text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]">
+          All (57)
+        </button>
+        <button onclick="setTracker('apartment')" id="tab-apartment" class="py-1.5 rounded-lg text-xs font-semibold transition text-[var(--muted-foreground)]">
+          🏢 Apts (48)
+        </button>
+        <button onclick="setTracker('condo')" id="tab-condo" class="py-1.5 rounded-lg text-xs font-semibold transition text-[var(--muted-foreground)]">
+          🏘️ Condos (9)
+        </button>
+      </div>
+    </div>
+
+    <!-- ZONE 2: Multi-Select Status Filter Pills + Search & Bi-Directional Sort Bar -->
+    <div class="px-4 py-3 border-b border-[var(--border)] bg-[var(--card)] space-y-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-[var(--muted-foreground)] font-medium">Status Filter (Multi-select):</span>
+        <button onclick="selectAllStatuses()" class="text-xs font-semibold text-[var(--foreground)] underline">Toggle All</button>
+      </div>
+
+      <!-- Multi-Select Status Pills (Active + Shortlisted ON by default) -->
+      <div class="flex gap-1.5 overflow-x-auto pb-0.5">
+        <button onclick="toggleStatus('active')" id="status-active" class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition">
+          ✓ 🟢 Active (0)
+        </button>
+        <button onclick="toggleStatus('shortlisted')" id="status-shortlisted" class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition">
+          ✓ ⭐ Shortlisted (0)
+        </button>
+        <button onclick="toggleStatus('rejected')" id="status-rejected" class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition">
+          ❌ Rejected (0)
+        </button>
+        <button onclick="toggleStatus('delisted')" id="status-delisted" class="px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition">
+          🚫 Delisted (0)
+        </button>
+      </div>
+
+      <!-- Search + Sort Field + Asc/Desc Toggle Button -->
+      <div class="flex gap-1.5">
+        <input
+          id="searchInput"
+          oninput="renderListingView()"
+          type="text"
+          placeholder="Search address, city, note..."
+          class="flex-1 min-w-0 bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-1.5 text-xs text-[var(--foreground)] placeholder-[var(--placeholder)] focus:outline-none"
+        />
+        <select
+          id="sortFieldSelect"
+          onchange="onSortFieldChange()"
+          class="bg-[var(--background)] border border-[var(--border)] rounded-xl px-2 py-1.5 text-xs text-[var(--foreground)] font-medium focus:outline-none"
+        >
+          <option value="price">Sort: Rent</option>
+          <option value="date">Sort: Move-in</option>
+          <option value="ppsf">Sort: $/SqFt</option>
+          <option value="sqft">Sort: SqFt</option>
+          <option value="sun">Sort: Sunlight</option>
+          <option value="cap1">Sort: CapOne Dist</option>
+          <option value="amz">Sort: Amazon Dist</option>
+        </select>
+        <button
+          id="sortDirBtn"
+          onclick="toggleSortDirection()"
+          title="Toggle Ascending / Descending"
+          class="px-2.5 py-1.5 rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] border border-[var(--border)] text-xs font-bold whitespace-nowrap active:scale-95 transition"
+        >
+          ↑ Asc
+        </button>
+      </div>
+    </div>
+
+    <!-- ZONE 3: Dynamic Listing Content (Either Card View OR Sticky-Column Table View) -->
+    <div id="listingsContainer" class="p-3.5 bg-[var(--background)] min-h-[420px]">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- ZONE 4: Slide-Up Bottom Sheet for Comment / Shortlist / Reject via Telegram -->
+    <div id="actionModal" class="hidden fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-0 sm:p-4">
+      <div class="w-full max-w-md bg-[var(--card)] border-t-2 sm:border border-[var(--border)] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl">
+        <div class="flex items-start justify-between">
+          <div>
+            <span id="modalBadge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-1"></span>
+            <h3 id="modalTitle" class="text-sm font-bold text-[var(--foreground)]"></h3>
+            <p id="modalSubtitle" class="text-xs text-[var(--muted-foreground)]"></p>
+          </div>
+          <button onclick="closeModal()" class="px-2.5 py-1 rounded-lg text-xs bg-[var(--secondary)] text-[var(--secondary-foreground)] font-semibold">✕</button>
+        </div>
+
+        <!-- Action Type Selector inside Sheet -->
+        <div class="grid grid-cols-3 gap-1.5 bg-[var(--background)] p-1 rounded-xl border border-[var(--border)]">
+          <button onclick="switchModalAction('comment')" id="mact-comment" class="py-1.5 rounded-lg text-xs font-semibold transition">
+            💬 Comment
+          </button>
+          <button onclick="switchModalAction('shortlist')" id="mact-shortlist" class="py-1.5 rounded-lg text-xs font-semibold transition">
+            ⭐ Shortlist
+          </button>
+          <button onclick="switchModalAction('reject')" id="mact-reject" class="py-1.5 rounded-lg text-xs font-semibold transition">
+            ❌ Reject
+          </button>
+        </div>
+
+        <!-- Optional Scope Selector when Rejecting an Apartment Building -->
+        <div id="rejectScopeBox" class="hidden bg-[var(--background)] border border-[var(--border)] rounded-xl p-2.5 space-y-1.5">
+          <p class="text-xs font-semibold text-[var(--foreground)]">What do you want to mute?</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="setRejectScope('building')" id="scope-building" class="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)]">
+              🏢 Entire Building
+            </button>
+            <button onclick="setRejectScope('unit')" id="scope-unit" class="py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--secondary)] text-[var(--secondary-foreground)]">
+              🚪 Only This Unit
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick-Tap Reason Chips -->
+        <div>
+          <p class="text-xs font-medium text-[var(--muted-foreground)] mb-1.5">Quick-tap notes (or type below):</p>
+          <div id="quickChips" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- Comment Input -->
+        <div>
+          <textarea
+            id="modalCommentInput"
+            rows="2"
+            oninput="updateTelegramPreview()"
+            placeholder="Write your comment or reason (e.g. 'Great kitchen, schedule tour' or 'Faces noisy highway')..."
+            class="w-full bg-[var(--background)] border border-[var(--border)] rounded-xl p-2.5 text-xs text-[var(--foreground)] placeholder-[var(--placeholder)] focus:outline-none"
+          ></textarea>
+        </div>
+
+        <!-- Pre-filled Telegram Message Preview -->
+        <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-2.5">
+          <p class="text-xs text-[var(--muted-foreground)] mb-1">📲 Command copied to clipboard when you tap Send:</p>
+          <code id="telegramCmdPreview" class="text-xs font-mono text-[var(--foreground)] block break-words"></code>
+        </div>
+
+        <!-- Sync Timing Note -->
+        <p id="copyToast" class="text-xs text-amber-300">
+          ⏳ Paste & send in your Telegram group chat — updates will reflect here on the next scheduled script run.
+        </p>
+
+        <!-- Modal Action Buttons -->
+        <div class="flex flex-col gap-2">
+          <button onclick="shareToTelegram()" class="w-full py-2.5 rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-bold shadow active:scale-98 transition flex items-center justify-center gap-1.5">
+            <span>✈️</span> <span>Share to Telegram Chat</span>
+          </button>
+          <div class="flex gap-2">
+            <button onclick="copyCommandOnly()" class="flex-1 py-2 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-medium hover:opacity-80 transition flex items-center justify-center gap-1">
+              <span>📋</span> <span id="copyOnlyBtnText">Copy Text Only</span>
+            </button>
+            <button onclick="openTelegramAppOnly()" class="flex-1 py-2 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-medium hover:opacity-80 transition flex items-center justify-center gap-1">
+              <span>📱</span> <span>Open Telegram App</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const listings = [
+  {
+    "id": "apartment_9834863",
+    "listing_id": "9834863",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "6166 Leesburg Pike",
+    "buildingName": "6166 Leesburg Pike",
+    "city": "Falls Church",
+    "zip": "22044",
+    "unit": "#A202 (President)",
+    "price": 2060,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1275,
+    "availDate": "2027-01-01",
+    "availLabel": "Jan 1, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description provides no specific details regarding floor level, window sizes, or directional orientation, resulting in a neutral baseline natural light rating.",
+    "distCapOne": 5.5,
+    "distAmz": 5.0,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "Ace",
+        "text": "Rejected: very low 3.3 rating across 200+ reviews",
+        "time": "Nov 11, 04:42 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Falls-Church/The-Jefferson-an-Eagle-Rock-Community/apartment/9834863"
+  },
+  {
+    "id": "apartment_177642405",
+    "listing_id": "177642405",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1900 S Eads St",
+    "buildingName": "1900 S Eads St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#CH-11114 (B8 WF 80)",
+    "price": 2278,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1555,
+    "availDate": "2027-01-08",
+    "availLabel": "Jan 8, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the standard average category.",
+    "distCapOne": 9.8,
+    "distAmz": 0.5,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "Ace",
+        "text": "Rejected: Recent bad reviews about management, maintenance etc",
+        "time": "Nov 13, 06:22 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-House/apartment/177642405"
+  },
+  {
+    "id": "apartment_28681988",
+    "listing_id": "28681988",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2301 Columbia Pike",
+    "buildingName": "2301 Columbia Pike",
+    "city": "Arlington",
+    "zip": "22204",
+    "unit": "#412 (B12)",
+    "price": 2517,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1218,
+    "availDate": "2027-01-28",
+    "availLabel": "Jan 28, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the standard average category.",
+    "distCapOne": 8.2,
+    "distAmz": 1.5,
+    "status": "active",
+    "comments": [
+      {
+        "author": "Ace",
+        "text": "Can check it",
+        "time": "Nov 13, 06:22 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Siena-Park/apartment/28681988"
+  },
+  {
+    "id": "apartment_177408115",
+    "listing_id": "177408115",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "5599 Seminary Rd",
+    "buildingName": "5599 Seminary Rd",
+    "city": "Falls Church",
+    "zip": "22041",
+    "unit": "#S-613 (Mount Vernon Premier)",
+    "price": 2537,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1746,
+    "availDate": "2027-01-03",
+    "availLabel": "Jan 3, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Apartment] The provided description lacks specific floor level, window size, or directional orientation details, resulting in an average and neutral natural lighting assessment.",
+    "distCapOne": 7.4,
+    "distAmz": 3.8,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Seasonal turnover of heating/cooling",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . Seasonal changeover of heating/cooling",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Falls-Church/Skyline-Towers/apartment/177408115"
+  },
+  {
+    "id": "apartment_11263470",
+    "listing_id": "11263470",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1957 Columbia Pike",
+    "buildingName": "1957 Columbia Pike",
+    "city": "Arlington",
+    "zip": "22204",
+    "unit": "#61-33 (B5)",
+    "price": 2640,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1261,
+    "availDate": "2026-12-28",
+    "availLabel": "Dec 28, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description mentions private balconies or patios which provide some outdoor light access, but lacks details on specific window sizes, high floors, or favorable solar orientations.",
+    "distCapOne": 8.3,
+    "distAmz": 1.3,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Eagle-Rock-Apartments-at-Columbia-Pike/apartment/11263470"
+  },
+  {
+    "id": "apartment_11265119",
+    "listing_id": "11265119",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "5550 Columbia Pike",
+    "buildingName": "5550 Columbia Pike",
+    "city": "Arlington",
+    "zip": "22204",
+    "unit": "#372 (2x2 Modernized)",
+    "price": 2695,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1150,
+    "availDate": "2027-01-23",
+    "availLabel": "Jan 23, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description does not provide specific details regarding floor level, window size, or directional orientation, placing it in the standard average category.",
+    "distCapOne": 7.1,
+    "distAmz": 3.6,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Wildwood-Park/apartment/11265119"
+  },
+  {
+    "id": "apartment_177361140",
+    "listing_id": "177361140",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2042 Peach Orchard Dr",
+    "buildingName": "2042 Peach Orchard Dr",
+    "city": "Falls Church",
+    "zip": "22043",
+    "unit": "#2018-23 (3 bed/ 2 Bath-B2D)",
+    "price": 2754,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1243,
+    "availDate": "2027-01-26",
+    "availLabel": "Jan 26, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description mentions interiors filled with natural light, but lacks specific details on orientation, floor level, or window size, placing it in the average category.",
+    "distCapOne": 1.4,
+    "distAmz": 8.6,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "This is PeachTree of Mclean and as far as I remember you toured it and its not nice",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . This is PeachTree of Mclean and as far as I remember you toured it and its not nice",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Falls-Church/PeachTree-of-McLean/apartment/177361140"
+  },
+  {
+    "id": "apartment_11274052",
+    "listing_id": "11274052",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "320 23rd St S",
+    "buildingName": "320 23rd St S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#320-1427 (2 Bed, 2 Bath 1286 SF 22)",
+    "price": 2766,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1713,
+    "availDate": "2026-12-27",
+    "availLabel": "Dec 27, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, resulting in a neutral baseline lighting evaluation.",
+    "distCapOne": 10.1,
+    "distAmz": 0.7,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Quimby-on-23rd/apartment/11274052"
+  },
+  {
+    "id": "apartment_12036313",
+    "listing_id": "12036313",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "501 Roosevelt Blvd",
+    "buildingName": "501 Roosevelt Blvd",
+    "city": "Falls Church",
+    "zip": "22044",
+    "unit": "#B304 (2 Bed/2 Bath-TC2A)",
+    "price": 2777,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1136,
+    "availDate": "2027-01-10",
+    "availLabel": "Jan 10, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description focuses on the general location and neighborhood amenities without mentioning specific floor levels, window sizes, or directional orientation.",
+    "distCapOne": 4.6,
+    "distAmz": 5.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Falls-Church/501-Roosevelt-Blvd-22044/home/12036313"
+  },
+  {
+    "id": "apartment_177386913",
+    "listing_id": "177386913",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1723 Gosnell Rd",
+    "buildingName": "1723 Gosnell Rd",
+    "city": "Tysons",
+    "zip": "22182",
+    "unit": "#19-101 (B3B Premium)",
+    "price": 2784,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1160,
+    "availDate": "2027-01-15",
+    "availLabel": "Jan 15, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Garden-Style Apartment] The property is a garden-style apartment community without explicit high-floor, corner placement, or southern exposure details specified in the description.",
+    "distCapOne": 1.3,
+    "distAmz": 10.7,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Tysons/Tysons-Crossing/apartment/177386913"
+  },
+  {
+    "id": "apartment_195179419",
+    "listing_id": "195179419",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "7970 Maitland St",
+    "buildingName": "7970 Maitland St",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#311 (B205)",
+    "price": 2786,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1537,
+    "availDate": "2027-01-12",
+    "availLabel": "Jan 12, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding window orientation, floor level, or sunlight exposure, resulting in a neutral baseline rating.",
+    "distCapOne": 0.4,
+    "distAmz": 10.0,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/McLean/Brentford-at-The-Mile/apartment/195179419"
+  },
+  {
+    "id": "apartment_11233351",
+    "listing_id": "11233351",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "4300 Langston Blvd",
+    "buildingName": "4300 Langston Blvd",
+    "city": "Arlington",
+    "zip": "22207",
+    "unit": "#300-0108 (2 Bedroom, 2 Bath 1176 SF 22A)",
+    "price": 2839,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1570,
+    "availDate": "2027-01-19",
+    "availLabel": "Jan 19, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description and amenities do not specify floor level, window sizes, or directional orientation for the property, resulting in an average natural light score.",
+    "distCapOne": 5.7,
+    "distAmz": 4.0,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "We had toured this and cut it off our list because it was not good",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . Toured this, did not like it.",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/The-Horizons/apartment/11233351"
+  },
+  {
+    "id": "apartment_191272226",
+    "listing_id": "191272226",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "8721 Boone Blvd",
+    "buildingName": "8721 Boone Blvd",
+    "city": "Vienna",
+    "zip": "22182",
+    "unit": "#1-N-429 (The Network (C3-UD))",
+    "price": 2840,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1318,
+    "availDate": "2027-01-19",
+    "availLabel": "Jan 19, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description for this new construction does not provide specific details regarding floor level, window size, or directional exposure, resulting in a neutral baseline evaluation.",
+    "distCapOne": 1.7,
+    "distAmz": 11.2,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Vienna/8721-Boone-Blvd-22182/home/191272226"
+  },
+  {
+    "id": "apartment_109751173",
+    "listing_id": "109751173",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "6410 Arlington Blvd",
+    "buildingName": "6410 Arlington Blvd",
+    "city": "Falls Church",
+    "zip": "22042",
+    "unit": "#0351 (B1)",
+    "price": 2911,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.5,
+    "sqft": 1636,
+    "availDate": "2027-01-11",
+    "availLabel": "Jan 11, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description lacks specific information regarding floor level, window sizes, or directional orientation, resulting in an average neutral daylight rating.",
+    "distCapOne": 4.6,
+    "distAmz": 5.8,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Falls-Church/LOREN/apartment/109751173"
+  },
+  {
+    "id": "apartment_109702446",
+    "listing_id": "109702446",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "7915 Jones Branch Dr",
+    "buildingName": "7915 Jones Branch Dr",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#617 (B4B)",
+    "price": 2916,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1215,
+    "availDate": "2027-01-03",
+    "availLabel": "Jan 3, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description highlights a park-like setting but does not provide specific details regarding floor level, window sizes, or directional orientation, placing it in the average category.",
+    "distCapOne": 0.3,
+    "distAmz": 9.9,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/McLean/Highgate-at-the-Mile/apartment/109702446"
+  },
+  {
+    "id": "apartment_28681735",
+    "listing_id": "28681735",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2501 9th Rd S",
+    "buildingName": "2501 9th Rd S",
+    "city": "Arlington",
+    "zip": "22204",
+    "unit": "#001-530 (2B-A3)",
+    "price": 2924,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.5,
+    "sqft": 1366,
+    "availDate": "2027-01-14",
+    "availLabel": "Jan 14, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, and directional orientation, resulting in an average baseline evaluation.",
+    "distCapOne": 8.1,
+    "distAmz": 1.6,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Penrose-Square-Apartments/apartment/28681735"
+  },
+  {
+    "id": "apartment_203280799",
+    "listing_id": "203280799",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2209 N Pershing Dr",
+    "buildingName": "2209 N Pershing Dr",
+    "city": "Arlington",
+    "zip": "22201",
+    "unit": "#201-509 (2 Bdrm F)",
+    "price": 3050,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1279,
+    "availDate": "2027-01-06",
+    "availLabel": "Jan 6, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, resulting in an average and neutral natural lighting assessment.",
+    "distCapOne": 7.5,
+    "distAmz": 2.1,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/2201-Pershing/apartment/203280799"
+  },
+  {
+    "id": "apartment_21706036",
+    "listing_id": "21706036",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "3602 S 14th St",
+    "buildingName": "3602 S 14th St",
+    "city": "Alexandria",
+    "zip": "22302",
+    "unit": "#D332 (2 Bedroom 2 Bath (1,255 SF))",
+    "price": 3059,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1550,
+    "availDate": "2026-12-27",
+    "availLabel": "Dec 27, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description and amenities do not specify floor level, window sizes, or directional orientation, resulting in an average neutral rating.",
+    "distCapOne": 7.7,
+    "distAmz": 3.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Alexandria/Bailey-s-Crossing/apartment/21706036"
+  },
+  {
+    "id": "apartment_17936133",
+    "listing_id": "17936133",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1401 S Joyce St",
+    "buildingName": "1401 S Joyce St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1-109 (D5)",
+    "price": 3118,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1241,
+    "availDate": "2027-01-14",
+    "availLabel": "Jan 14, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[Rooftop Terrace / Upper Floor] The property features stunning rooftop terraces that provide elevated, unblocked sun exposure, characteristic of top-floor urban living.",
+    "distCapOne": 9.2,
+    "distAmz": 0.5,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "Ace",
+        "text": "Rejected: . Recent negative reviews about cockroach infestation but overall good only",
+        "time": "Nov 12, 04:22 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/1401-S-Joyce-St-22202/apartment/17936133"
+  },
+  {
+    "id": "apartment_59459295",
+    "listing_id": "59459295",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "7902 Tysons One Pl",
+    "buildingName": "7902 Tysons One Pl",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#1914 (B3)",
+    "price": 3125,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1236,
+    "availDate": "2027-01-03",
+    "availLabel": "Jan 3, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[High Floor Urban Apartment] The property is located on a high floor in an apartment building in Tysons Corner, suggesting elevated views and above-average natural light exposure despite the lack of explicit directional details.",
+    "distCapOne": 0.5,
+    "distAmz": 9.8,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "This is Vita. V bad reviews",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . This is Vita. V bad reviews",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/McLean/Vita-Tysons-Corner/apartment/59459295"
+  },
+  {
+    "id": "apartment_203278517",
+    "listing_id": "203278517",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2400 24th Rd S",
+    "buildingName": "2400 24th Rd S",
+    "city": "Arlington",
+    "zip": "22206",
+    "unit": "2B/2B Floorplan",
+    "price": 3167,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.5,
+    "sqft": 1415,
+    "availDate": "2027-03-07",
+    "availLabel": "Mar 7, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "Un-analyzed (Available too late (2027-03-07 > 2027-01-31))",
+    "distCapOne": 8.9,
+    "distAmz": 1.7,
+    "status": "active",
+    "comments": [
+      {
+        "author": "S",
+        "text": "This is Deepak’s building but 1st floor apartment",
+        "time": "Nov 11, 12:27 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Bell-Arlington-Ridge/apartment/203278517"
+  },
+  {
+    "id": "apartment_17502127",
+    "listing_id": "17502127",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1201 S Joyce St",
+    "buildingName": "1201 S Joyce St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1301 (Traditional 2x2 1131-1162 SF)",
+    "price": 3315,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1153,
+    "availDate": "2027-01-08",
+    "availLabel": "Jan 8, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average mid-tier category.",
+    "distCapOne": 9.2,
+    "distAmz": 0.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/MAA-National-Landing/apartment/17502127"
+  },
+  {
+    "id": "apartment_186167067",
+    "listing_id": "186167067",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "5203 Leesburg Pike",
+    "buildingName": "5203 Leesburg Pike",
+    "city": "Falls Church",
+    "zip": "22041",
+    "unit": "#0921 (B4)",
+    "price": 3353,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.5,
+    "sqft": 1311,
+    "availDate": "2026-12-31",
+    "availLabel": "Dec 31, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description lacks specific details regarding floor level, window sizes, or directional orientation, resulting in a neutral baseline score.",
+    "distCapOne": 7.5,
+    "distAmz": 3.7,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Falls-Church/Three-Collective/apartment/186167067"
+  },
+  {
+    "id": "apartment_179448827",
+    "listing_id": "179448827",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "410 S Maple Ave",
+    "buildingName": "410 S Maple Ave",
+    "city": "Falls Church",
+    "zip": "22046",
+    "unit": "#337 (B14)",
+    "price": 3353,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1451,
+    "availDate": "2027-01-08",
+    "availLabel": "Jan 8, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description for Pearson Square does not specify floor level, window size, or directional orientation, resulting in an average and neutral natural lighting assessment.",
+    "distCapOne": 3.6,
+    "distAmz": 6.8,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Falls-Church/Pearson-Square/apartment/179448827"
+  },
+  {
+    "id": "apartment_11274238",
+    "listing_id": "11274238",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "2111 Richmond Hwy",
+    "buildingName": "2111 Richmond Hwy",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1209N (2 Bed, 2 Bath Den 1572 SF 2D2)",
+    "price": 3356,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 1701,
+    "availDate": "2027-01-01",
+    "availLabel": "Jan 1, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[Above Average East/West] The property features oversized, light-filled floor plans that maximize natural daylight. While specific orientation and floor level are not detailed, the description explicitly highlights bright, sun-infused living spaces.",
+    "distCapOne": 10.0,
+    "distAmz": 0.6,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Not this one. It has central ac/heating. Like seasonal changeover",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . Seasonal changeover",
+        "time": "Nov 11, 01:28 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . Seasonal changeover of heating/cooling",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-Plaza/apartment/11274238"
+  },
+  {
+    "id": "apartment_11274692",
+    "listing_id": "11274692",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "901 15th St S",
+    "buildingName": "901 15th St S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1411 (Instrata_Singapour)",
+    "price": 3365,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1133,
+    "availDate": "2027-01-08",
+    "availLabel": "Jan 8, 2027",
+    "sunlight": 6,
+    "sunlightSummary": "[Standard] The property description mentions penthouses and dynamic living spaces, but lacks specific directional orientation or window details, placing it at a neutral average score.",
+    "distCapOne": 9.3,
+    "distAmz": 0.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Instrata-Pentagon-City/apartment/11274692"
+  },
+  {
+    "id": "apartment_28682034",
+    "listing_id": "28682034",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "305 10th St S",
+    "buildingName": "305 10th St S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#3328 (2 Bedroom, 2 Bath 1275 SF B3D)",
+    "price": 3378,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1153,
+    "availDate": "2027-01-16",
+    "availLabel": "Jan 16, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[High Floor with Elevated Views] The property overlooks the D.C. skyline and the Potomac River from an elevated position atop Long Bridge, indicating high-floor placement with bright, unblocked views and above-average natural daylight exposure.",
+    "distCapOne": 9.8,
+    "distAmz": 0.3,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-City-Lofts/apartment/28682034"
+  },
+  {
+    "id": "apartment_11257518",
+    "listing_id": "11257518",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "4301 N Henderson Rd",
+    "buildingName": "4301 N Henderson Rd",
+    "city": "Arlington",
+    "zip": "22203",
+    "unit": "2B/2B Floorplan",
+    "price": 3395,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 3.0,
+    "sqft": 1110,
+    "availDate": "2027-02-05",
+    "availLabel": "Feb 5, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "Un-analyzed (Available too late (2027-02-05 > 2027-01-31))",
+    "distCapOne": 6.5,
+    "distAmz": 3.1,
+    "status": "active",
+    "comments": [
+      {
+        "author": "S",
+        "text": "This is the best so far",
+        "time": "Nov 11, 12:27 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Henderson-Park/apartment/11257518"
+  },
+  {
+    "id": "apartment_17114056",
+    "listing_id": "17114056",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1350 Beverly Rd",
+    "buildingName": "1350 Beverly Rd",
+    "city": "McLean",
+    "zip": "22101",
+    "unit": "#623 (B2 - Renovated)",
+    "price": 3401,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1214,
+    "availDate": "2027-01-03",
+    "availLabel": "Jan 3, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the standard average category.",
+    "distCapOne": 2.1,
+    "distAmz": 8.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/McLean/Cortland-at-McLean/apartment/17114056"
+  },
+  {
+    "id": "apartment_11274488",
+    "listing_id": "11274488",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1425 S Eads St",
+    "buildingName": "1425 S Eads St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1303 (Washington - Renovated)",
+    "price": 3404,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1217,
+    "availDate": "2027-01-23",
+    "availLabel": "Jan 23, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average category by default.",
+    "distCapOne": 9.7,
+    "distAmz": 0.2,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Cortland-on-South-Eads/apartment/11274488"
+  },
+  {
+    "id": "apartment_203281402",
+    "listing_id": "203281402",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "505 18th St S",
+    "buildingName": "505 18th St S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#0515 (2 Bedroom, 2 Bath 1132 SF C6)",
+    "price": 3491,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1132,
+    "availDate": "2027-01-19",
+    "availLabel": "Jan 19, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Urban Apartment] The listing description mentions an urban apartment oasis in National Landing with designer touches, but provides no specific details regarding floor level, window sizes, or directional orientation, placing it in the average category.",
+    "distCapOne": 9.8,
+    "distAmz": 0.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-Flats/apartment/203281402"
+  },
+  {
+    "id": "apartment_11274483",
+    "listing_id": "11274483",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "401 12th St S",
+    "buildingName": "401 12th St S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1421 (The Taylor II)",
+    "price": 3582,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1168,
+    "availDate": "2026-12-27",
+    "availLabel": "Dec 27, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Apartment] The property description does not provide specific details regarding floor level, window sizes, or directional orientation, placing it in the average neutral category.",
+    "distCapOne": 9.7,
+    "distAmz": 0.1,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Lenox-Club/apartment/11274483"
+  },
+  {
+    "id": "apartment_17936291",
+    "listing_id": "17936291",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1800 N Oak St",
+    "buildingName": "1800 N Oak St",
+    "city": "Arlington",
+    "zip": "22209",
+    "unit": "#1-1202 (2 Bedrooms R)",
+    "price": 3613,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1170,
+    "availDate": "2026-12-29",
+    "availLabel": "Dec 29, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Mid-Floor Apartment] The description highlights location and modern flooring but provides no specific details regarding window size, orientation, or floor level, pointing to an average baseline score.",
+    "distCapOne": 7.8,
+    "distAmz": 2.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/1800-N-Oak-St-22209/apartment/17936291"
+  },
+  {
+    "id": "apartment_180450191",
+    "listing_id": "180450191",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1768 Old Meadow Rd",
+    "buildingName": "1768 Old Meadow Rd",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#421 (B5)",
+    "price": 3615,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 3.0,
+    "sqft": 1378,
+    "availDate": "2027-01-19",
+    "availLabel": "Jan 19, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Residential] The description highlights a scenic wooded setting near Scott's Run, but lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average range.",
+    "distCapOne": 0.4,
+    "distAmz": 9.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/McLean/The-Rylan/apartment/180450191"
+  },
+  {
+    "id": "apartment_11274680",
+    "listing_id": "11274680",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1221 S Eads St",
+    "buildingName": "1221 S Eads St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#01-0611 (B10)",
+    "price": 3619,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1243,
+    "availDate": "2026-12-21",
+    "availLabel": "Dec 21, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific directional orientation, floor level details, or window dimensions, placing it in the standard average category.",
+    "distCapOne": 9.7,
+    "distAmz": 0.1,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Cortland-Pentagon-City/apartment/11274680"
+  },
+  {
+    "id": "apartment_177408125",
+    "listing_id": "177408125",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1330 S Fair St",
+    "buildingName": "1330 S Fair St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#330-1502 (2 Bedroom H)",
+    "price": 3623,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1245,
+    "availDate": "2027-01-16",
+    "availLabel": "Jan 16, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard Apartment] The property description lacks specific details regarding floor level, window sizes, and directional orientation, resulting in an average neutral rating for natural lighting potential.",
+    "distCapOne": 9.6,
+    "distAmz": 0.2,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/The-Millennium/apartment/177408125"
+  },
+  {
+    "id": "apartment_175578376",
+    "listing_id": "175578376",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1500 Westbranch Dr",
+    "buildingName": "1500 Westbranch Dr",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#309 (2 Bed/2 Bath-H)",
+    "price": 3654,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1192,
+    "availDate": "2026-12-21",
+    "availLabel": "Dec 21, 2026",
+    "sunlight": 7,
+    "sunlightSummary": "[High Floor with Expansive Windows] The property features expansive modern windows designed to bring ample natural light into the open-concept living spaces, aligning with above-average sunlight exposure.",
+    "distCapOne": 0.6,
+    "distAmz": 10.1,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/McLean/The-Jones-at-Tysons/apartment/175578376"
+  },
+  {
+    "id": "apartment_50277719",
+    "listing_id": "50277719",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "8231 Crestwood Heights Dr",
+    "buildingName": "8231 Crestwood Heights Dr",
+    "city": "Tysons",
+    "zip": "22102",
+    "unit": "#0902 (2 Bed-2 Bath-C2)",
+    "price": 3687,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1125,
+    "availDate": "2027-01-22",
+    "availLabel": "Jan 22, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[High Floor] The property is located in a high-rise community, which typically offers elevated views and above-average natural light exposure compared to lower levels.",
+    "distCapOne": 0.9,
+    "distAmz": 10.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Tysons/Ovation-at-Park-Crest/apartment/50277719"
+  },
+  {
+    "id": "apartment_160409150",
+    "listing_id": "160409150",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "7911 Westpark Dr",
+    "buildingName": "7911 Westpark Dr",
+    "city": "Tysons",
+    "zip": "22102",
+    "unit": "#0701 (2 Bed/2 Bath - B11)",
+    "price": 3705,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1345,
+    "availDate": "2026-12-27",
+    "availLabel": "Dec 27, 2026",
+    "sunlight": 6,
+    "sunlightSummary": "[Standard Residential] The description highlights vibrant energy and rooftop pool views, but lacks specific details regarding directional orientation or expansive glass features, placing it in the average range.",
+    "distCapOne": 0.3,
+    "distAmz": 9.8,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Tysons/7911-Westpark-Dr-22102/home/160409150"
+  },
+  {
+    "id": "apartment_11274235",
+    "listing_id": "11274235",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1501 Crystal Dr",
+    "buildingName": "1501 Crystal Dr",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1-1013 (2 Bedrooms N)",
+    "price": 3760,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1205,
+    "availDate": "2026-12-22",
+    "availLabel": "Dec 22, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided property description lacks specific directional orientation, floor level details, or window specifications, making it a standard neutral baseline for natural lighting.",
+    "distCapOne": 9.9,
+    "distAmz": 0.3,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/Water-Park-Towers/apartment/11274235"
+  },
+  {
+    "id": "apartment_11274236",
+    "listing_id": "11274236",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1515 Richmond Hwy",
+    "buildingName": "1515 Richmond Hwy",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1201 (2 Bedroom, 2 Bath 1313 SF B1G)",
+    "price": 3796,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1492,
+    "availDate": "2026-12-25",
+    "availLabel": "Dec 25, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific directional orientation, floor level details, or mentions of oversized windows, resulting in an average natural lighting assessment.",
+    "distCapOne": 9.9,
+    "distAmz": 0.3,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "It has seasonal changeover of HVAC",
+        "time": "Nov 11, 12:27 AM"
+      },
+      {
+        "author": "Ace",
+        "text": "Rejected: . It has seasonal changeover of HVAC",
+        "time": "Nov 11, 01:28 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-Square/apartment/11274236"
+  },
+  {
+    "id": "apartment_195166315",
+    "listing_id": "195166315",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1033 W Broad St",
+    "buildingName": "1033 W Broad St",
+    "city": "Falls Church",
+    "zip": "22046",
+    "unit": "#1-539 (B22)",
+    "price": 3830,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1184,
+    "availDate": "2027-01-26",
+    "availLabel": "Jan 26, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average neutral category.",
+    "distCapOne": 2.8,
+    "distAmz": 7.3,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Falls-Church/Modera-Falls-Church/apartment/195166315"
+  },
+  {
+    "id": "apartment_49797966",
+    "listing_id": "49797966",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1600 S Eads St",
+    "buildingName": "1600 S Eads St",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#0134N (2 Bedroom + Den, 2 Bath 1600 SF 2d2)",
+    "price": 3867,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1600,
+    "availDate": "2026-12-28",
+    "availLabel": "Dec 28, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The description highlights oversized floor plans and modern living spaces, but lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average category.",
+    "distCapOne": 9.7,
+    "distAmz": 0.3,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Rejected: independent heating/cooling",
+        "time": "Nov 11, 12:27 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/Crystal-Towers/apartment/49797966"
+  },
+  {
+    "id": "apartment_109522438",
+    "listing_id": "109522438",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "400 Army Navy Dr",
+    "buildingName": "400 Army Navy Dr",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#2017 (C06S)",
+    "price": 3873,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1243,
+    "availDate": "2027-01-07",
+    "availLabel": "Jan 7, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description and amenities do not specify floor level, window sizes, or directional orientation, resulting in an average neutral rating for natural light.",
+    "distCapOne": 9.6,
+    "distAmz": 0.1,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Rejected: <this is Altaire>",
+        "time": "Nov 13, 11:48 PM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/Arlington/400-Army-Navy-Dr-22202/home/109522438"
+  },
+  {
+    "id": "apartment_146095317",
+    "listing_id": "146095317",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "8305 Greensboro Dr",
+    "buildingName": "8305 Greensboro Dr",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#615 (B24B - Rise)",
+    "price": 3904,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1215,
+    "availDate": "2027-01-28",
+    "availLabel": "Jan 28, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[High Floor Luxury High-Rise] Located in a luxury high-rise building (Rise), the property benefits from an elevated floor level that typically provides unobstructed natural light and expansive sky exposure.",
+    "distCapOne": 1.0,
+    "distAmz": 10.5,
+    "status": "rejected",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Rejected: <this is boro has v bad reviews>",
+        "time": "Nov 11, 03:53 AM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/McLean/The-Boro/apartment/146095317"
+  },
+  {
+    "id": "apartment_11250697",
+    "listing_id": "11250697",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1701 N Kent St",
+    "buildingName": "1701 N Kent St",
+    "city": "Arlington",
+    "zip": "22209",
+    "unit": "#101006 (3 Bedroom - 2 Bath | C01)",
+    "price": 3964,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 2.0,
+    "sqft": 2000,
+    "availDate": "2026-12-24",
+    "availLabel": "Dec 24, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average neutral category based on standard apartment living.",
+    "distCapOne": 8.1,
+    "distAmz": 2.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/London-Normandy-House/apartment/11250697"
+  },
+  {
+    "id": "apartment_203278122",
+    "listing_id": "203278122",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "550 14th Rd S",
+    "buildingName": "550 14th Rd S",
+    "city": "Arlington",
+    "zip": "22202",
+    "unit": "#1131 (2 Bedroom + Den, 2 Bath 1270 SF BD2)",
+    "price": 3981,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1417,
+    "availDate": "2027-01-04",
+    "availLabel": "Jan 4, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description highlights location and luxury design but provides no specific details regarding floor level, window sizes, or directional orientation, placing it in the average natural light category.",
+    "distCapOne": 9.6,
+    "distAmz": 0.2,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/The-Gramercy/apartment/203278122"
+  },
+  {
+    "id": "apartment_180266244",
+    "listing_id": "180266244",
+    "tracker": "apartment",
+    "typeLabel": "🏢 Apt",
+    "source": "Redfin",
+    "address": "1601 Clarendon Blvd",
+    "buildingName": "1601 Clarendon Blvd",
+    "city": "Arlington",
+    "zip": "22209",
+    "unit": "#C0315 (B4 - Renovated)",
+    "price": 3995,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1129,
+    "availDate": "2027-01-12",
+    "availLabel": "Jan 12, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the standard average category.",
+    "distCapOne": 7.7,
+    "distAmz": 2.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Arlington/1601-Clarendon-Blvd-22209/home/180266244"
+  },
+  {
+    "id": "condo_9374682",
+    "listing_id": "9374682",
+    "tracker": "condo",
+    "typeLabel": "🏘️ Condo",
+    "source": "Redfin",
+    "address": "8846 Ashgrove House Ln #101",
+    "buildingName": "8846 Ashgrove House Ln #101",
+    "city": "Vienna",
+    "zip": "22182",
+    "unit": "#101",
+    "price": 2950,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1506,
+    "availDate": "2027-01-15",
+    "availLabel": "Flexible / Inquire",
+    "sunlight": 7,
+    "sunlightSummary": "[End-Unit Townhome-Style Condo] As an end-unit, this property benefits from additional exterior walls and windows, allowing for significantly better natural light and cross-exposure than a standard interior unit.",
+    "distCapOne": 1.9,
+    "distAmz": 11.5,
+    "status": "delisted",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Vienna/8846-Ashgrove-House-Ln-22182/unit-101/home/9374682"
+  },
+  {
+    "id": "condo_zillow_51752596",
+    "listing_id": "zillow_51752596",
+    "tracker": "condo",
+    "typeLabel": "🏘️ Condo",
+    "source": "Zillow",
+    "address": "6800 Fleetwood Rd APT 404",
+    "buildingName": "6800 Fleetwood Rd APT 404",
+    "city": "Mc Lean",
+    "zip": "22101",
+    "unit": "APT 404",
+    "price": 3150,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1265,
+    "availDate": "2027-01-02",
+    "availLabel": "Jan 2, 2027",
+    "sunlight": 6,
+    "sunlightSummary": "[High Floor Standard] The unit is located on the 4th floor (APT 404), which typically provides above-average natural light and better exposure compared to lower-floor units, though specific orientation details are not provided.",
+    "distCapOne": 2.2,
+    "distAmz": 8.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.zillow.com/homedetails/6800-Fleetwood-Rd-APT-404-Mc-Lean-VA-22101/51752596_zpid/"
+  },
+  {
+    "id": "condo_zillow_51801845",
+    "listing_id": "zillow_51801845",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Zillow",
+    "address": "3008 Sugar Ln",
+    "buildingName": "3008 Sugar Ln",
+    "city": "Vienna",
+    "zip": "22181",
+    "unit": "Whole Unit",
+    "price": 3250,
+    "priceDrop": 0,
+    "beds": 4,
+    "baths": 3.0,
+    "sqft": 1800,
+    "availDate": "2027-01-01",
+    "availLabel": "Jan 1, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The description lacks specific details regarding floor level, window sizes, or directional orientation, placing it in the average category by default.",
+    "distCapOne": 5.2,
+    "distAmz": 12.6,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.zillow.com/homedetails/3008-Sugar-Ln-Vienna-VA-22181/51801845_zpid/"
+  },
+  {
+    "id": "condo_zillow_51802017",
+    "listing_id": "zillow_51802017",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Zillow",
+    "address": "9934 Longford Ct",
+    "buildingName": "9934 Longford Ct",
+    "city": "Vienna",
+    "zip": "22181",
+    "unit": "Whole Unit",
+    "price": 3400,
+    "priceDrop": 0,
+    "beds": 4,
+    "baths": 4.0,
+    "sqft": 1928,
+    "availDate": "2027-01-19",
+    "availLabel": "Jan 19, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description provides no specific details regarding window size, floor level, or directional orientation, resulting in an average and neutral natural lighting assessment.",
+    "distCapOne": 5.1,
+    "distAmz": 12.5,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.zillow.com/homedetails/9934-Longford-Ct-Vienna-VA-22181/51802017_zpid/"
+  },
+  {
+    "id": "condo_zillow_51811344",
+    "listing_id": "zillow_51811344",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Zillow",
+    "address": "2911 Montauk Ct",
+    "buildingName": "2911 Montauk Ct",
+    "city": "Falls Church",
+    "zip": "22042",
+    "unit": "Whole Unit",
+    "price": 3500,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 4.0,
+    "sqft": 1700,
+    "availDate": "2027-01-11",
+    "availLabel": "Jan 11, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The property description provides no specific details regarding floor level, window sizes, or directional orientation, resulting in a neutral average score.",
+    "distCapOne": 3.6,
+    "distAmz": 8.6,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.zillow.com/homedetails/2911-Montauk-Ct-Falls-Church-VA-22042/51811344_zpid/"
+  },
+  {
+    "id": "condo_zillow_51808665",
+    "listing_id": "zillow_51808665",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Zillow",
+    "address": "2807 Lafora Ct",
+    "buildingName": "2807 Lafora Ct",
+    "city": "Vienna",
+    "zip": "22180",
+    "unit": "Whole Unit",
+    "price": 3600,
+    "priceDrop": 0,
+    "beds": 4,
+    "baths": 4.0,
+    "sqft": 2236,
+    "availDate": "2027-01-10",
+    "availLabel": "Jan 10, 2027",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The description does not provide specific details regarding floor level, window sizes, or directional orientation for this townhouse, yielding an average baseline score.",
+    "distCapOne": 3.8,
+    "distAmz": 10.2,
+    "status": "active",
+    "comments": [
+      {
+        "author": "S",
+        "text": "This looks good",
+        "time": "Nov 11, 12:27 AM"
+      }
+    ],
+    "url": "https://www.zillow.com/homedetails/2807-Lafora-Ct-Vienna-VA-22180/51808665_zpid/"
+  },
+  {
+    "id": "condo_9374441",
+    "listing_id": "9374441",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Redfin",
+    "address": "8835 Ashgrove House Ln",
+    "buildingName": "8835 Ashgrove House Ln",
+    "city": "Vienna",
+    "zip": "22182",
+    "unit": "Whole Unit",
+    "price": 3850,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 3.5,
+    "sqft": 2170,
+    "availDate": "2027-01-08",
+    "availLabel": "Jan 8, 2027",
+    "sunlight": 7,
+    "sunlightSummary": "[Four-Level All-Above-Ground Townhouse] Being a four-level, all-above-ground brick townhouse, the property benefits from multi-level exposure and elevation that allows for good natural light penetration throughout the home.",
+    "distCapOne": 1.9,
+    "distAmz": 11.4,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.redfin.com/VA/Vienna/8835-Ashgrove-House-Ln-22182/home/9374441"
+  },
+  {
+    "id": "condo_21705850",
+    "listing_id": "21705850",
+    "tracker": "condo",
+    "typeLabel": "🏘️ Condo",
+    "source": "Redfin",
+    "address": "8220 Crestwood Heights Dr #1105",
+    "buildingName": "8220 Crestwood Heights Dr #1105",
+    "city": "McLean",
+    "zip": "22102",
+    "unit": "#1105",
+    "price": 3950,
+    "priceDrop": 0,
+    "beds": 2,
+    "baths": 2.0,
+    "sqft": 1329,
+    "availDate": "2027-01-01",
+    "availLabel": "Jan 1, 2027",
+    "sunlight": 8,
+    "sunlightSummary": "[High Floor Light-Filled Residence] Located on the 11th floor (high floor) of a premier luxury condo building, the residence is explicitly described as spacious and light-filled with an open concept layout.",
+    "distCapOne": 0.9,
+    "distAmz": 10.4,
+    "status": "shortlisted",
+    "comments": [
+      {
+        "author": "S",
+        "text": "Shortlisted via Telegram",
+        "time": "Nov 13, 04:30 PM"
+      }
+    ],
+    "url": "https://www.redfin.com/VA/McLean/8220-Crestwood-Heights-Dr-22102/unit-1105/home/21705850"
+  },
+  {
+    "id": "condo_zillow_51769408",
+    "listing_id": "zillow_51769408",
+    "tracker": "condo",
+    "typeLabel": "🏘️ TH",
+    "source": "Zillow",
+    "address": "106 Shepherdson Ln NE",
+    "buildingName": "106 Shepherdson Ln NE",
+    "city": "Vienna",
+    "zip": "22180",
+    "unit": "Whole Unit",
+    "price": 4000,
+    "priceDrop": 0,
+    "beds": 3,
+    "baths": 4.0,
+    "sqft": 1980,
+    "availDate": "2026-12-15",
+    "availLabel": "Dec 15, 2026",
+    "sunlight": 5,
+    "sunlightSummary": "[Standard] The provided description lacks specific details regarding floor level, window sizes, or directional orientation, resulting in a default average score.",
+    "distCapOne": 3.3,
+    "distAmz": 12.0,
+    "status": "active",
+    "comments": [],
+    "url": "https://www.zillow.com/homedetails/106-Shepherdson-Ln-NE-Vienna-VA-22180/51769408_zpid/"
+  }
+];
+
+    let currentTracker = "all";
+    let selectedStatuses = new Set(["active", "shortlisted"]);
+    let viewMode = "cards";
+    let sortField = "price";
+    let sortDir = "asc";
+    let activeItem = null;
+    let modalAction = "comment";
+    let rejectScope = "building";
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      const btnCards = document.getElementById("view-cards");
+      const btnTable = document.getElementById("view-table");
+      if (mode === "cards") {
+        btnCards.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]";
+        btnTable.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-[var(--muted-foreground)]";
+      } else {
+        btnTable.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]";
+        btnCards.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-[var(--muted-foreground)]";
+      }
+      renderListingView();
+    }
+
+    function onSortFieldChange() {
+      sortField = document.getElementById("sortFieldSelect").value;
+      renderListingView();
+    }
+
+    function toggleSortDirection() {
+      sortDir = sortDir === "asc" ? "desc" : "asc";
+      updateSortControlsUI();
+      renderListingView();
+    }
+
+    function setSortColumn(field) {
+      if (sortField === field) {
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+      } else {
+        sortField = field;
+        sortDir = (field === "sqft" || field === "sun") ? "desc" : "asc";
+      }
+      document.getElementById("sortFieldSelect").value = sortField;
+      updateSortControlsUI();
+      renderListingView();
+    }
+
+    function updateSortControlsUI() {
+      const btn = document.getElementById("sortDirBtn");
+      btn.textContent = sortDir === "asc" ? "↑ Asc" : "↓ Desc";
+    }
+
+    function colArrow(field) {
+      if (sortField !== field) return `<span class="opacity-40">↕</span>`;
+      return sortDir === "asc" ? `<span class="text-[var(--foreground)]">↑</span>` : `<span class="text-[var(--foreground)]">↓</span>`;
+    }
+
+    function setTracker(t) {
+      currentTracker = t;
+      ["all", "apartment", "condo"].forEach(k => {
+        const btn = document.getElementById("tab-" + k);
+        if (k === t) {
+          btn.className = "py-1.5 rounded-lg text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]";
+        } else {
+          btn.className = "py-1.5 rounded-lg text-xs font-semibold transition text-[var(--muted-foreground)]";
+        }
+      });
+      updateStatusPills();
+      renderListingView();
+    }
+
+    function toggleStatus(s) {
+      if (selectedStatuses.has(s)) {
+        if (selectedStatuses.size > 1) {
+          selectedStatuses.delete(s);
+        }
+      } else {
+        selectedStatuses.add(s);
+      }
+      updateStatusPills();
+      renderListingView();
+    }
+
+    function selectAllStatuses() {
+      if (selectedStatuses.size === 4) {
+        selectedStatuses = new Set(["active", "shortlisted"]);
+      } else {
+        selectedStatuses = new Set(["active", "shortlisted", "rejected", "delisted"]);
+      }
+      updateStatusPills();
+      renderListingView();
+    }
+
+    function updateStatusPills() {
+      const pool = listings.filter(l => currentTracker === "all" || l.tracker === currentTracker);
+      const meta = [
+        { key: "active", icon: "🟢", label: "Active" },
+        { key: "shortlisted", icon: "⭐", label: "Shortlisted" },
+        { key: "rejected", icon: "❌", label: "Rejected" },
+        { key: "delisted", icon: "🚫", label: "Delisted" }
+      ];
+      meta.forEach(m => {
+        const count = pool.filter(l => l.status === m.key).length;
+        const btn = document.getElementById("status-" + m.key);
+        const isOn = selectedStatuses.has(m.key);
+        btn.textContent = `${isOn ? "✓ " : ""}${m.icon} ${m.label} (${count})`;
+        btn.className = isOn
+          ? "px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm"
+          : "px-2.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition bg-[var(--secondary)] text-[var(--secondary-foreground)] opacity-75";
+      });
+    }
+
+    function getFilteredAndSorted() {
+      const query = (document.getElementById("searchInput").value || "").toLowerCase();
+      const mult = sortDir === "asc" ? 1 : -1;
+
+      let filtered = listings.filter(l => {
+        if (currentTracker !== "all" && l.tracker !== currentTracker) return false;
+        if (!selectedStatuses.has(l.status)) return false;
+        if (query) {
+          const hay = `${l.address} ${l.buildingName} ${l.city} ${l.unit} ${l.comments.map(c => c.text).join(" ")}`.toLowerCase();
+          if (!hay.includes(query)) return false;
+        }
+        return true;
+      });
+
+      filtered.sort((a, b) => {
+        let diff = 0;
+        if (sortField === "price") diff = a.price - b.price;
+        else if (sortField === "date") diff = a.availDate.localeCompare(b.availDate);
+        else if (sortField === "ppsf") diff = (a.price / a.sqft) - (b.price / b.sqft);
+        else if (sortField === "sqft") diff = a.sqft - b.sqft;
+        else if (sortField === "sun") diff = a.sunlight - b.sunlight;
+        else if (sortField === "cap1") diff = a.distCapOne - b.distCapOne;
+        else if (sortField === "amz") diff = a.distAmz - b.distAmz;
+        return diff * mult;
+      });
+
+      return filtered;
+    }
+
+    function renderListingView() {
+      const container = document.getElementById("listingsContainer");
+      const filtered = getFilteredAndSorted();
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-12 px-4 bg-[var(--card)] border border-[var(--border)] rounded-2xl">
+            <p class="text-sm font-semibold text-[var(--foreground)]">No listings match current filters</p>
+            <p class="text-xs text-[var(--muted-foreground)] mt-1">Tap additional status pills above (e.g. Rejected / Delisted) or clear search.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (viewMode === "table") {
+        renderTableView(container, filtered);
+      } else {
+        renderCardsView(container, filtered);
+      }
+    }
+
+    function renderTableView(container, filtered) {
+      const rowsHtml = filtered.map(l => {
+        const ppsf = (l.price / (l.sqft || 1100)).toFixed(2);
+        const statusDot =
+          l.status === "shortlisted" ? "⭐" :
+          l.status === "rejected" ? "❌" :
+          l.status === "delisted" ? "🚫" : "🟢";
+        const latestComment = l.comments.length > 0
+          ? `${l.comments[l.comments.length - 1].author}: "${l.comments[l.comments.length - 1].text}"`
+          : "—";
+
+        return `
+          <tr id="item-${l.id}" class="border-b border-[var(--border)] hover:bg-[var(--secondary)]/40 transition">
+            <!-- Sticky Left Property Column -->
+            <td class="sticky left-0 z-10 bg-[var(--card)] px-2.5 py-2.5 border-r border-[var(--border)] min-w-[145px] max-w-[155px]">
+              <div class="flex items-center gap-1">
+                <span>${statusDot}</span>
+                <a href="${l.url}" target="_blank" class="text-xs font-bold text-[var(--foreground)] underline truncate">${l.buildingName}</a>
+              </div>
+              <div class="text-xs text-[var(--muted-foreground)] truncate">${l.city} ${l.zip}</div>
+              <div class="text-xs font-medium text-[var(--foreground)] truncate">${l.unit}</div>
+            </td>
+
+            <!-- Rent & $/SqFt -->
+            <td class="px-2.5 py-2.5 whitespace-nowrap text-xs">
+              <div class="font-extrabold text-[var(--foreground)]">$${l.price.toLocaleString()}</div>
+              <div class="text-[var(--muted-foreground)]">$${ppsf}/sf</div>
+            </td>
+
+            <!-- Move-in Date -->
+            <td class="px-2.5 py-2.5 whitespace-nowrap text-xs font-medium text-[var(--foreground)]">
+              ${l.availLabel}
+            </td>
+
+            <!-- Office Distances in Miles -->
+            <td class="px-2.5 py-2.5 whitespace-nowrap text-xs">
+              <div>🏦 <span class="font-semibold">${l.distCapOne.toFixed(1)} mi</span> <span class="text-[var(--muted-foreground)]">CapOne</span></div>
+              <div>🏢 <span class="font-semibold">${l.distAmz.toFixed(1)} mi</span> <span class="text-[var(--muted-foreground)]">HQ2</span></div>
+            </td>
+
+            <!-- Bed/Bath, SqFt & Sunlight -->
+            <td class="px-2.5 py-2.5 whitespace-nowrap text-xs">
+              <div class="font-semibold">${l.beds}b / ${l.baths}ba • ${l.sqft.toLocaleString()} sf</div>
+              <div class="text-[var(--muted-foreground)]">☀️ Sunlight: ${l.sunlight}/10</div>
+            </td>
+
+            <!-- Notes / Rejection Reason -->
+            <td class="px-2.5 py-2.5 text-xs min-w-[160px] max-w-[200px]">
+              <div class="line-clamp-2 text-[var(--foreground)]">${latestComment}</div>
+            </td>
+
+            <!-- Quick Actions -->
+            <td class="px-2.5 py-2.5 whitespace-nowrap text-xs">
+              <div class="flex items-center gap-1">
+                <button onclick="openActionModal('${l.id}', 'comment')" title="Comment" class="px-2 py-1 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] font-semibold">💬</button>
+                <button onclick="openActionModal('${l.id}', 'shortlist')" title="Shortlist" class="px-2 py-1 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] font-semibold">⭐</button>
+                <button onclick="openActionModal('${l.id}', 'reject')" title="Reject" class="px-2 py-1 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] font-semibold">❌</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <div class="mb-2 flex items-center justify-between text-xs text-[var(--muted-foreground)]">
+          <span>↔️ Swipe horizontally (Property pinned)</span>
+          <span>Tap headers to toggle ↑/↓</span>
+        </div>
+        <div class="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-x-auto shadow-sm">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[var(--border)] bg-[var(--sidebar)] text-xs font-bold text-[var(--muted-foreground)]">
+                <th class="sticky left-0 z-10 bg-[var(--sidebar)] px-2.5 py-2 border-r border-[var(--border)]">Property</th>
+                <th onclick="setSortColumn('price')" class="px-2.5 py-2 cursor-pointer whitespace-nowrap hover:text-[var(--foreground)]">Rent ${colArrow('price')}</th>
+                <th onclick="setSortColumn('date')" class="px-2.5 py-2 cursor-pointer whitespace-nowrap hover:text-[var(--foreground)]">Avail ${colArrow('date')}</th>
+                <th onclick="setSortColumn('cap1')" class="px-2.5 py-2 cursor-pointer whitespace-nowrap hover:text-[var(--foreground)]">Office Dist ${colArrow('cap1')}</th>
+                <th onclick="setSortColumn('sqft')" class="px-2.5 py-2 cursor-pointer whitespace-nowrap hover:text-[var(--foreground)]">SqFt ${colArrow('sqft')}</th>
+                <th class="px-2.5 py-2 whitespace-nowrap">Notes / Reason</th>
+                <th class="px-2.5 py-2 whitespace-nowrap">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderCardsView(container, filtered) {
+      container.innerHTML = `<div class="space-y-3">` + filtered.map(l => {
+        const ppsf = (l.price / (l.sqft || 1100)).toFixed(2);
+        const statusBadge =
+          l.status === "shortlisted"
+            ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">⭐ Shortlisted</span>`
+            : l.status === "rejected"
+            ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">❌ Rejected</span>`
+            : l.status === "delisted"
+            ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/30">🚫 Delisted</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🟢 Active</span>`;
+
+        const priceDropBadge = l.priceDrop > 0
+          ? `<span class="px-1.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">📉 -$${l.priceDrop}</span>`
+          : "";
+
+        const commentsHtml = l.comments.length > 0
+          ? `<div class="mt-2.5 space-y-1.5 border-t border-[var(--border)] pt-2">
+              ${l.comments.map(c => `
+                <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl px-3 py-2 text-xs">
+                  <span class="font-bold text-[var(--foreground)]">💬 ${c.author}:</span>
+                  <span class="text-[var(--foreground)]"> "${c.text}"</span>
+                  <span class="text-[var(--muted-foreground)] block mt-0.5">${c.time}</span>
+                </div>
+              `).join("")}
+            </div>`
+          : "";
+
+        return `
+          <div id="item-${l.id}" class="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-3.5 shadow-sm transition">
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="px-2 py-0.5 rounded-md text-xs font-semibold bg-[var(--secondary)] text-[var(--secondary-foreground)]">${l.typeLabel}</span>
+                ${statusBadge}
+              </div>
+              <div class="text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  ${priceDropBadge}
+                  <span class="text-base font-extrabold text-[var(--foreground)]">$${l.price.toLocaleString()}<span class="text-xs font-normal text-[var(--muted-foreground)]">/mo</span></span>
+                </div>
+                <span class="text-xs text-[var(--muted-foreground)]">$${ppsf}/sqft • ${l.source}</span>
+              </div>
+            </div>
+
+            <div class="mb-2.5">
+              <div class="text-sm font-bold text-[var(--foreground)] leading-snug">${l.buildingName}</div>
+              <div class="text-xs text-[var(--muted-foreground)]">${l.address}, ${l.city} ${l.zip}</div>
+              <div class="inline-block mt-1 px-2 py-0.5 rounded bg-[var(--background)] border border-[var(--border)] text-xs font-medium text-[var(--foreground)]">
+                🚪 ${l.unit}
+              </div>
+            </div>
+
+            <div class="bg-[var(--background)] border border-[var(--border)] rounded-xl p-2.5 text-xs space-y-2">
+              <div class="grid grid-cols-3 gap-1.5 border-b border-[var(--border)] pb-2">
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">📐 Layout</span>
+                  <span class="font-semibold">${l.beds}b/${l.baths}ba • ${l.sqft.toLocaleString()} sf</span>
+                </div>
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">📅 Move-in</span>
+                  <span class="font-semibold">${l.availLabel}</span>
+                </div>
+                <div>
+                  <span class="text-[var(--muted-foreground)] block">☀️ Sunlight</span>
+                  <span class="font-semibold">${l.sunlight}/10 ⭐</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-0.5">
+                <div class="flex items-center justify-between bg-[var(--card)] border border-[var(--border)] rounded-lg px-2.5 py-1.5">
+                  <span class="text-[var(--muted-foreground)]">🏦 Capital One</span>
+                  <span class="font-bold text-[var(--foreground)]">${l.distCapOne.toFixed(1)} mi</span>
+                </div>
+                <div class="flex items-center justify-between bg-[var(--card)] border border-[var(--border)] rounded-lg px-2.5 py-1.5">
+                  <span class="text-[var(--muted-foreground)]">🏢 Amazon HQ2</span>
+                  <span class="font-bold text-[var(--foreground)]">${l.distAmz.toFixed(1)} mi</span>
+                </div>
+              </div>
+            </div>
+
+            ${commentsHtml}
+
+            <div class="grid grid-cols-4 gap-1.5 mt-3 pt-2.5 border-t border-[var(--border)]">
+              <a href="${l.url}" target="_blank" class="py-2 rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-semibold text-center hover:opacity-90">
+                🔗 Listing
+              </a>
+              <button onclick="openActionModal('${l.id}', 'comment')" class="py-2 rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-semibold text-center hover:opacity-90">
+                💬 Comment
+              </button>
+              <button onclick="openActionModal('${l.id}', 'shortlist')" class="py-2 rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-semibold text-center hover:opacity-90">
+                ⭐ Shortlist
+              </button>
+              <button onclick="openActionModal('${l.id}', 'reject')" class="py-2 rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs font-semibold text-center hover:opacity-90">
+                ❌ Reject
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("") + `</div>`;
+    }
+
+    function openActionModal(id, actionType) {
+      activeItem = listings.find(l => l.id === id);
+      if (!activeItem) return;
+      document.getElementById("modalTitle").textContent = `${activeItem.buildingName} (${activeItem.unit})`;
+      document.getElementById("modalSubtitle").textContent = `${activeItem.address}, ${activeItem.city} • $${activeItem.price.toLocaleString()}/mo`;
+      document.getElementById("modalCommentInput").value = "";
+      rejectScope = "building";
+      switchModalAction(actionType);
+      document.getElementById("actionModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("actionModal").classList.add("hidden");
+    }
+
+    function switchModalAction(act) {
+      modalAction = act;
+      ["comment", "shortlist", "reject"].forEach(k => {
+        const b = document.getElementById("mact-" + k);
+        if (k === act) {
+          b.className = "py-1.5 rounded-lg text-xs font-semibold transition bg-[var(--primary)] text-[var(--primary-foreground)]";
+        } else {
+          b.className = "py-1.5 rounded-lg text-xs font-semibold transition text-[var(--muted-foreground)]";
+        }
+      });
+
+      const badge = document.getElementById("modalBadge");
+      const scopeBox = document.getElementById("rejectScopeBox");
+
+      if (act === "comment") {
+        badge.className = "inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-1 bg-blue-500/20 text-blue-400";
+        badge.textContent = "💬 ADD COMMENT VIA TELEGRAM";
+        scopeBox.classList.add("hidden");
+        setQuickChips(["Ask about parking fee", "Check floor level", "Good commute for both of us", "Call leasing office"]);
+      } else if (act === "shortlist") {
+        badge.className = "inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-1 bg-amber-500/20 text-amber-400";
+        badge.textContent = "⭐ SHORTLIST VIA TELEGRAM";
+        scopeBox.classList.add("hidden");
+        setQuickChips(["Tour this weekend!", "Love this layout & kitchen", "Top contender — great price", "Great balcony & sunlight"]);
+      } else {
+        badge.className = "inline-block px-2.5 py-0.5 rounded-full text-xs font-bold mb-1 bg-rose-500/20 text-rose-400";
+        badge.textContent = "❌ REJECT & MUTE VIA TELEGRAM";
+        if (activeItem && activeItem.tracker === "apartment") {
+          scopeBox.classList.remove("hidden");
+        } else {
+          scopeBox.classList.add("hidden");
+        }
+        setQuickChips(["Faces internal courtyard", "Too far from Metro", "Kitchen too small", "Bad reviews / noisy street"]);
+      }
+      updateTelegramPreview();
+    }
+
+    function setRejectScope(sc) {
+      rejectScope = sc;
+      document.getElementById("scope-building").className = sc === "building"
+        ? "py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)]"
+        : "py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--secondary)] text-[var(--secondary-foreground)]";
+      document.getElementById("scope-unit").className = sc === "unit"
+        ? "py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)]"
+        : "py-1.5 px-2 rounded-lg text-xs font-semibold bg-[var(--secondary)] text-[var(--secondary-foreground)]";
+      updateTelegramPreview();
+    }
+
+    function setQuickChips(chips) {
+      const container = document.getElementById("quickChips");
+      container.innerHTML = chips.map(c => `
+        <button onclick="appendChip('${c.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] text-xs hover:opacity-80 transition">
+          + ${c}
+        </button>
+      `).join("");
+    }
+
+    function appendChip(text) {
+      const input = document.getElementById("modalCommentInput");
+      input.value = input.value ? `${input.value}; ${text}` : text;
+      updateTelegramPreview();
+    }
+
+    function getFormattedCommand() {
+      if (!activeItem) return "";
+      const note = (document.getElementById("modalCommentInput").value || "").trim();
+      let prefix = "/note";
+      if (modalAction === "shortlist") prefix = "/shortlist";
+      if (modalAction === "reject") {
+        prefix = (activeItem.tracker === "apartment" && rejectScope === "unit") ? "/reject unit" : "/reject";
+      }
+      return note ? `${prefix} [${activeItem.address}]: ${note}` : `${prefix} [${activeItem.address}]`;
+    }
+
+    function updateTelegramPreview() {
+      document.getElementById("telegramCmdPreview").textContent = getFormattedCommand();
+    }
+
+    function applyOptimisticModalAction() {
+      const note = (document.getElementById("modalCommentInput").value || "").trim() || "Updated via Dashboard";
+      if (modalAction === "shortlist") {
+        activeItem.status = "shortlisted";
+      } else if (modalAction === "reject") {
+        activeItem.status = "rejected";
+      }
+      activeItem.comments.push({
+        author: "You (pending next sync)",
+        text: note,
+        time: "Just now"
+      });
+    }
+
+    function shareToTelegram() {
+      if (!activeItem) return;
+      const cmd = getFormattedCommand();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).catch(() => {});
+      }
+      applyOptimisticModalAction();
+      closeModal();
+      updateStatusPills();
+      renderListingView();
+      const shareUrl = "https://t.me/share/url?url=" + encodeURIComponent("https://achintyaacharya.github.io/apartment_dashboard/") + "&text=" + encodeURIComponent(cmd);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        window.location.href = shareUrl;
+      } else {
+        window.open(shareUrl, "_blank");
+      }
+    }
+
+    function copyCommandOnly() {
+      if (!activeItem) return;
+      const cmd = getFormattedCommand();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).catch(() => {});
+      }
+      applyOptimisticModalAction();
+      const label = document.getElementById("copyOnlyBtnText");
+      if (label) label.textContent = "✅ Copied!";
+      setTimeout(() => {
+        closeModal();
+        updateStatusPills();
+        renderListingView();
+        if (label) label.textContent = "Copy Text Only";
+      }, 500);
+    }
+
+    function openTelegramAppOnly() {
+      if (!activeItem) return;
+      const cmd = getFormattedCommand();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).catch(() => {});
+      }
+      applyOptimisticModalAction();
+      closeModal();
+      updateStatusPills();
+      renderListingView();
+      window.location.href = "tg://";
+    }
+
+    function copyAndOpenTelegram() {
+      shareToTelegram();
+    }
+
+    updateStatusPills();
+    renderListingView();
+  </script>
+</body>
+</html>
